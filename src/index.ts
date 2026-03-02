@@ -1,4 +1,3 @@
-import path from "node:path";
 import { Client, Events, GatewayIntentBits, type SendableChannels } from "discord.js";
 import { config } from "./config";
 import { trackCommand, handleTrackCommand } from "./commands/track";
@@ -14,7 +13,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
 
-const dbService = new DbService(path.join(process.cwd(), "data", "tracks.db"));
+const dbService = new DbService(config.dbFilePath);
 const trackerService = new TrackerService(dbService.loadTracks());
 
 let isPolling = false;

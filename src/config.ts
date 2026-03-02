@@ -22,9 +22,14 @@ function readPollInterval(): number {
   return parsed;
 }
 
+function readDbFilePath(): string {
+  return process.env.DB_FILE_PATH || "data/tracks.db";
+}
+
 export const config = {
   discordToken: requireEnv("DISCORD_TOKEN"),
   discordClientId: requireEnv("DISCORD_CLIENT_ID"),
   discordGuildId: process.env.DISCORD_GUILD_ID,
   pollIntervalMs: readPollInterval(),
+  dbFilePath: readDbFilePath(),
 };

@@ -1,0 +1,19 @@
+services:
+  - type: worker
+    name: hyperliquid-discord-bot
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: POLL_INTERVAL_MS
+        value: "15000"
+      - key: DB_FILE_PATH
+        value: data/tracks.db
