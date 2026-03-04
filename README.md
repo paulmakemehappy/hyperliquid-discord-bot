@@ -8,7 +8,8 @@ Discord bot in Node.js + TypeScript that tracks Hyperliquid token price moves an
 - Posts the current price immediately when tracking starts
 - Slash command: `/untrack coin [channel]`
 - Slash command: `/tracks` to list active tracking configs
-- Threshold is percentage-based (for example `0.5` means `0.5%`)
+- Slash command: `/settimeout seconds` to change polling interval without redeploy
+- Threshold is USD-based (for example `0.5` means a `$0.50` move)
 - Uses Hyperliquid `POST /info` with `type: allMids`
 - Persists tracks locally in SQLite at `data/tracks.db`
 
@@ -24,15 +25,17 @@ npm install
 
 - `DISCORD_TOKEN`
 - `DISCORD_CLIENT_ID`
-- `DISCORD_GUILD_ID`
-- `POLL_INTERVAL_MS` (optional, default `15000`)
+- `DISCORD_GUILD_ID` (optional; not used for global command registration)
+- `POLL_INTERVAL_MS` (optional, default `5000`)
 - `DB_FILE_PATH` (optional, default `data/tracks.db`)
 
-3. Register slash commands in your guild:
+3. Register global slash commands:
 
 ```bash
 npm run register
 ```
+
+This registers commands globally (for all servers where the bot is installed).
 
 4. Start bot in dev mode:
 
@@ -47,6 +50,8 @@ npm run dev
 `/untrack coin:HYPE channel:#alerts`
 
 `/tracks`
+
+`/settimeout seconds:5`
 
 Alert message format:
 

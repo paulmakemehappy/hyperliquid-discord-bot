@@ -13,11 +13,11 @@ function requireEnv(name: string): string {
 function readPollInterval(): number {
   const raw = process.env.POLL_INTERVAL_MS;
   if (!raw) {
-    return 15000;
+    return 5000;
   }
   const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed < 5000) {
-    throw new Error("POLL_INTERVAL_MS must be a number >= 5000");
+  if (!Number.isFinite(parsed) || parsed < 2000) {
+    throw new Error("POLL_INTERVAL_MS must be a number >= 2000");
   }
   return parsed;
 }

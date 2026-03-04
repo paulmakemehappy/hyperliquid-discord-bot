@@ -21,6 +21,12 @@ export class DbService {
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       )
     `);
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
   }
 
   loadTracks(): TrackConfig[] {
@@ -42,7 +48,7 @@ export class DbService {
       id: row.id,
       guildId: row.guild_id,
       coin: row.coin,
-      thresholdPercent: row.threshold_percent,
+      thresholdUsd: row.threshold_percent,
       channelId: row.channel_id,
       emoji: row.emoji,
       baselinePrice: row.baseline_price,
@@ -63,7 +69,7 @@ export class DbService {
           id: track.id,
           guild_id: track.guildId,
           coin: track.coin,
-          threshold_percent: track.thresholdPercent,
+          threshold_percent: track.thresholdUsd,
           channel_id: track.channelId,
           emoji: track.emoji,
           baseline_price: track.baselinePrice,
@@ -72,5 +78,28 @@ export class DbService {
     });
 
     tx(tracks);
+  }
+
+  loadPollIntervalMs(defaultValue: number): number {
+    const row = this.db
+      .prepare(`SELECT value FROM settings WHERE key = 'poll_interval_ms'`)
+      .get() as { value: string } | undefined;
+
+    if (!row) {
+      return defaultValue;
+    }
+
+    const parsed = Number(row.value);
+    if (!Number.isFinite(parsed) || parsed < 2000) {
+      return defaultValue;
+    }
+
+    return parsed;
+  }
+
+  savePollIntervalMs(value: number): void {
+    this.db
+      .prepare(`INSERT INTO settings (key, value) VALUES ('poll_interval_ms', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+      .run(String(value));
   }
 }

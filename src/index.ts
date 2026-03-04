@@ -3,6 +3,7 @@ import { config } from "./config";
 import { trackCommand, handleTrackCommand } from "./commands/track";
 import { untrackCommand, handleUntrackCommand } from "./commands/untrack";
 import { tracksCommand, handleTracksCommand } from "./commands/tracks";
+import { setTimeoutCommand, handleSetTimeoutCommand } from "./commands/set-timeout";
 import { DOWN_EMOJI, UP_EMOJI } from "./constants";
 import { DbService } from "./services/db";
 import { getAllMids } from "./services/hyperliquid";
@@ -15,11 +16,33 @@ const client = new Client({
 
 const dbService = new DbService(config.dbFilePath);
 const trackerService = new TrackerService(dbService.loadTracks());
+let pollIntervalMs = dbService.loadPollIntervalMs(config.pollIntervalMs);
 
 let isPolling = false;
+let pollingTimer: NodeJS.Timeout | null = null;
 
 function persistTracks(): void {
   dbService.saveTracks(trackerService.listAllTracks());
+}
+
+function getPollIntervalMs(): number {
+  return pollIntervalMs;
+}
+
+function schedulePolling(): void {
+  if (pollingTimer) {
+    clearInterval(pollingTimer);
+  }
+
+  pollingTimer = setInterval(() => {
+    void runMonitoringTick();
+  }, pollIntervalMs);
+}
+
+function setPollIntervalMs(newPollIntervalMs: number): void {
+  pollIntervalMs = newPollIntervalMs;
+  dbService.savePollIntervalMs(newPollIntervalMs);
+  schedulePolling();
 }
 
 function isSendableChannel(channel: unknown): channel is SendableChannels {
@@ -114,12 +137,10 @@ async function runMonitoringTick(): Promise<void> {
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
   console.log(
-    `Loaded commands: /${trackCommand.name}, /${untrackCommand.name}, /${tracksCommand.name}. Active tracks: ${trackerService.getTrackCount()}`,
+    `Loaded commands: /${trackCommand.name}, /${untrackCommand.name}, /${tracksCommand.name}, /${setTimeoutCommand.name}. Active tracks: ${trackerService.getTrackCount()}. Poll interval: ${Math.round(pollIntervalMs / 1000)}s`,
   );
   void postInitialPricesOnStartup();
-  setInterval(() => {
-    void runMonitoringTick();
-  }, config.pollIntervalMs);
+  schedulePolling();
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -138,6 +159,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     if (interaction.commandName === tracksCommand.name) {
       await handleTracksCommand(interaction, trackerService);
+      return;
+    }
+    if (interaction.commandName === setTimeoutCommand.name) {
+      await handleSetTimeoutCommand(interaction, getPollIntervalMs, setPollIntervalMs);
       return;
     }
   } catch (error) {

@@ -17,14 +17,14 @@ function formatPrice(price: number): string {
 
 export const trackCommand = new SlashCommandBuilder()
   .setName("track")
-  .setDescription("Track a token and post when its price moves by a threshold percentage")
+  .setDescription("Track a token and post when its price moves by a USD threshold")
   .addStringOption((option) =>
     option.setName("coin").setDescription("Coin symbol, e.g. HYPE").setRequired(true),
   )
   .addNumberOption((option) =>
     option
       .setName("threshold")
-      .setDescription("Percentage move needed before posting, e.g. 0.5")
+      .setDescription("USD move needed before posting, e.g. 0.5")
       .setRequired(true)
       .setMinValue(0.01),
   )
@@ -94,7 +94,7 @@ export async function handleTrackCommand(
     id,
     guildId,
     coin,
-    thresholdPercent: threshold,
+    thresholdUsd: threshold,
     channelId: targetChannel.id,
     emoji,
     baselinePrice: initialPrice,
@@ -114,7 +114,7 @@ export async function handleTrackCommand(
   persistTracks();
 
   await interaction.reply({
-    content: `Tracking ${coin} at ${threshold}% in <#${targetChannel.id}> with ${emoji}`,
+    content: `Tracking ${coin} at $${threshold} move in <#${targetChannel.id}> with ${emoji}`,
     ephemeral: true,
   });
 }

@@ -64,8 +64,8 @@ export class TrackerService {
         continue;
       }
 
-      const movePercent = Math.abs(((currentPrice - track.baselinePrice) / track.baselinePrice) * 100);
-      if (movePercent < track.thresholdPercent) {
+      const moveUsd = Math.abs(currentPrice - track.baselinePrice);
+      if (moveUsd < track.thresholdUsd) {
         continue;
       }
 
@@ -76,7 +76,7 @@ export class TrackerService {
         track,
         currentPrice,
         previousBaseline,
-        movePercent,
+        moveUsd,
       });
     }
 

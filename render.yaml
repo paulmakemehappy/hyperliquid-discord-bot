@@ -14,6 +14,6 @@ services:
       - key: DISCORD_GUILD_ID
         sync: false
       - key: POLL_INTERVAL_MS
-        value: "15000"
+        value: "5000"
       - key: DB_FILE_PATH
         value: data/tracks.db

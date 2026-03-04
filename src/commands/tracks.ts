@@ -27,7 +27,7 @@ export async function handleTracksCommand(
 
   const lines = tracks.map(
     (track) =>
-      `${track.emoji} ${track.coin} | threshold: ${track.thresholdPercent}% | channel: <#${track.channelId}> | baseline: ${formatPrice(track.baselinePrice)}`,
+      `${track.emoji} ${track.coin} | threshold: $${track.thresholdUsd} | channel: <#${track.channelId}> | baseline: ${formatPrice(track.baselinePrice)}`,
   );
 
   await interaction.reply({
