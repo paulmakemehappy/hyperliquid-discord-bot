@@ -4,9 +4,11 @@ import { trackCommand, handleTrackCommand } from "./commands/track";
 import { untrackCommand, handleUntrackCommand } from "./commands/untrack";
 import { tracksCommand, handleTracksCommand } from "./commands/tracks";
 import { setTimeoutCommand, handleSetTimeoutCommand } from "./commands/set-timeout";
+import { pingHlCommand, handlePingHlCommand } from "./commands/ping-hl";
 import { DOWN_EMOJI, UP_EMOJI } from "./constants";
 import { DbService } from "./services/db";
 import { getAllMids } from "./services/hyperliquid";
+import { PingAlertService } from "./services/ping-alerts";
 import { TrackerService } from "./services/tracker";
 import type { TrackConfig } from "./types";
 
@@ -16,6 +18,7 @@ const client = new Client({
 
 const dbService = new DbService(config.dbFilePath);
 const trackerService = new TrackerService(dbService.loadTracks());
+const pingAlertService = new PingAlertService();
 let pollIntervalMs = dbService.loadPollIntervalMs(config.pollIntervalMs);
 
 let isPolling = false;
@@ -104,6 +107,7 @@ async function runMonitoringTick(): Promise<void> {
   try {
     const mids = await getAllMids();
     const events = trackerService.evaluate(mids);
+    const pingEvents = pingAlertService.evaluate(mids);
     let changed = false;
 
     for (const event of events) {
@@ -124,6 +128,22 @@ async function runMonitoringTick(): Promise<void> {
       }
     }
 
+    for (const pingEvent of pingEvents) {
+      try {
+        const channel = await client.channels.fetch(pingEvent.channelId);
+        if (!isSendableChannel(channel)) {
+          continue;
+        }
+
+        const mentionPrefix = pingEvent.mentionText ? `${pingEvent.mentionText} ` : "";
+        await channel.send(
+          `${mentionPrefix}${pingEvent.coin} reached $${formatPrice(pingEvent.targetPrice)}.`,
+        );
+      } catch (error) {
+        console.error(`Failed to post ping_hl alert for ${pingEvent.coin} in ${pingEvent.channelId}:`, error);
+      }
+    }
+
     if (changed) {
       persistTracks();
     }
@@ -137,7 +157,7 @@ async function runMonitoringTick(): Promise<void> {
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
   console.log(
-    `Loaded commands: /${trackCommand.name}, /${untrackCommand.name}, /${tracksCommand.name}, /${setTimeoutCommand.name}. Active tracks: ${trackerService.getTrackCount()}. Poll interval: ${Math.round(pollIntervalMs / 1000)}s`,
+    `Loaded commands: /${trackCommand.name}, /${untrackCommand.name}, /${tracksCommand.name}, /${setTimeoutCommand.name}, /${pingHlCommand.name}. Active tracks: ${trackerService.getTrackCount()}. Poll interval: ${Math.round(pollIntervalMs / 1000)}s`,
   );
   void postInitialPricesOnStartup();
   schedulePolling();
@@ -163,6 +183,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     if (interaction.commandName === setTimeoutCommand.name) {
       await handleSetTimeoutCommand(interaction, getPollIntervalMs, setPollIntervalMs);
+      return;
+    }
+    if (interaction.commandName === pingHlCommand.name) {
+      await handlePingHlCommand(interaction, pingAlertService);
       return;
     }
   } catch (error) {

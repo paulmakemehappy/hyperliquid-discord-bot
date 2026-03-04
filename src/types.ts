@@ -14,3 +14,13 @@ export type AlertEvent = {
   previousBaseline: number;
   moveUsd: number;
 };
+
+export type PingAlert = {
+  id: string;
+  guildId: string;
+  channelId: string;
+  coin: string;
+  targetPrice: number;
+  startsBelowTarget: boolean;
+  mentionText?: string;
+};

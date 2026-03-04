@@ -9,6 +9,7 @@ Discord bot in Node.js + TypeScript that tracks Hyperliquid token price moves an
 - Slash command: `/untrack coin [channel]`
 - Slash command: `/tracks` to list active tracking configs
 - Slash command: `/settimeout seconds` to change polling interval without redeploy
+- Slash command: `/ping_hl symbol price [mention]` for one-time target alerts
 - Threshold is USD-based (for example `0.5` means a `$0.50` move)
 - Uses Hyperliquid `POST /info` with `type: allMids`
 - Persists tracks locally in SQLite at `data/tracks.db`
@@ -52,6 +53,8 @@ npm run dev
 `/tracks`
 
 `/settimeout seconds:5`
+
+`/ping_hl symbol:HYPE price:30.5 mention:@role`
 
 Alert message format:
 
