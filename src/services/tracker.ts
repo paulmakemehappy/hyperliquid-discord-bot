@@ -26,11 +26,11 @@ export class TrackerService {
   }
 
   removeTracks(guildId: string, coin: string, channelId?: string): number {
-    const targetCoin = coin.toUpperCase();
+    const targetCoin = coin.trim();
     let removed = 0;
 
     for (const [id, track] of this.tracks.entries()) {
-      if (track.guildId !== guildId || track.coin !== targetCoin) {
+      if (track.guildId !== guildId || track.coin.toUpperCase() !== targetCoin.toUpperCase()) {
         continue;
       }
 
@@ -55,29 +55,69 @@ export class TrackerService {
     return [...this.tracks.values()];
   }
 
-  evaluate(mids: Record<string, number>): AlertEvent[] {
+  private getStepDecimals(step: number): number {
+    const text = step.toString().toLowerCase();
+    if (text.includes("e-")) {
+      const [, exponentText] = text.split("e-");
+      return Number(exponentText);
+    }
+
+    const decimalPart = text.split(".")[1];
+    return decimalPart ? decimalPart.length : 0;
+  }
+
+  private quantize(value: number, decimals: number): number {
+    return Number(value.toFixed(decimals));
+  }
+
+  private ensureStepLevels(track: TrackConfig, referencePrice: number): void {
+    if (track.nextUpPrice !== undefined && track.nextDownPrice !== undefined) {
+      return;
+    }
+
+    const step = track.thresholdUsd;
+    const decimals = this.getStepDecimals(step);
+    const normalizedReference = this.quantize(referencePrice, decimals + 4);
+    const upMultiplier = Math.ceil(normalizedReference / step);
+    const downMultiplier = Math.floor(normalizedReference / step);
+    track.nextUpPrice = this.quantize(upMultiplier * step, decimals);
+    track.nextDownPrice = this.quantize(downMultiplier * step, decimals);
+  }
+
+  evaluate(prices: Record<string, number>): AlertEvent[] {
     const events: AlertEvent[] = [];
 
     for (const track of this.tracks.values()) {
-      const currentPrice = mids[track.coin];
+      const currentPrice = prices[track.coin];
       if (!currentPrice) {
         continue;
       }
 
-      const moveUsd = Math.abs(currentPrice - track.baselinePrice);
-      if (moveUsd < track.thresholdUsd) {
-        continue;
+      this.ensureStepLevels(track, track.baselinePrice || currentPrice);
+      const step = track.thresholdUsd;
+      const decimals = this.getStepDecimals(step);
+      const quantizedCurrent = this.quantize(currentPrice, decimals + 4);
+      const epsilon = step / 1_000_000;
+
+      while (track.nextUpPrice !== undefined && quantizedCurrent >= track.nextUpPrice - epsilon) {
+        const level = track.nextUpPrice;
+        const nextUp = this.quantize(level + step, decimals);
+        const nextDown = this.quantize(level - step, decimals);
+        events.push({ track, alertPrice: this.quantize(level, decimals), direction: "up" });
+        track.nextUpPrice = nextUp;
+        track.nextDownPrice = nextDown;
       }
 
-      const previousBaseline = track.baselinePrice;
-      track.baselinePrice = currentPrice;
+      while (track.nextDownPrice !== undefined && quantizedCurrent <= track.nextDownPrice + epsilon) {
+        const level = track.nextDownPrice;
+        const nextDown = this.quantize(level - step, decimals);
+        const nextUp = this.quantize(level + step, decimals);
+        events.push({ track, alertPrice: this.quantize(level, decimals), direction: "down" });
+        track.nextDownPrice = nextDown;
+        track.nextUpPrice = nextUp;
+      }
 
-      events.push({
-        track,
-        currentPrice,
-        previousBaseline,
-        moveUsd,
-      });
+      track.baselinePrice = quantizedCurrent;
     }
 
     return events;

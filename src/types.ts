@@ -6,13 +6,14 @@ export type TrackConfig = {
   channelId: string;
   emoji: string;
   baselinePrice: number;
+  nextUpPrice?: number;
+  nextDownPrice?: number;
 };
 
 export type AlertEvent = {
   track: TrackConfig;
-  currentPrice: number;
-  previousBaseline: number;
-  moveUsd: number;
+  alertPrice: number;
+  direction: "up" | "down";
 };
 
 export type PingAlert = {

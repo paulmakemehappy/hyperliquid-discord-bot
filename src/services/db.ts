@@ -18,9 +18,12 @@ export class DbService {
         channel_id TEXT NOT NULL,
         emoji TEXT NOT NULL,
         baseline_price REAL NOT NULL,
+        next_up_price REAL,
+        next_down_price REAL,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       )
     `);
+    this.ensureTrackColumns();
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
@@ -32,7 +35,7 @@ export class DbService {
   loadTracks(): TrackConfig[] {
     const rows = this.db
       .prepare(
-        `SELECT id, guild_id, coin, threshold_percent, channel_id, emoji, baseline_price FROM tracks`,
+        `SELECT id, guild_id, coin, threshold_percent, channel_id, emoji, baseline_price, next_up_price, next_down_price FROM tracks`,
       )
       .all() as Array<{
       id: string;
@@ -42,6 +45,8 @@ export class DbService {
       channel_id: string;
       emoji: string;
       baseline_price: number;
+      next_up_price: number | null;
+      next_down_price: number | null;
     }>;
 
     return rows.map((row) => ({
@@ -52,14 +57,16 @@ export class DbService {
       channelId: row.channel_id,
       emoji: row.emoji,
       baselinePrice: row.baseline_price,
+      nextUpPrice: row.next_up_price ?? undefined,
+      nextDownPrice: row.next_down_price ?? undefined,
     }));
   }
 
   saveTracks(tracks: TrackConfig[]): void {
     const clearStmt = this.db.prepare(`DELETE FROM tracks`);
     const insertStmt = this.db.prepare(`
-      INSERT INTO tracks (id, guild_id, coin, threshold_percent, channel_id, emoji, baseline_price)
-      VALUES (@id, @guild_id, @coin, @threshold_percent, @channel_id, @emoji, @baseline_price)
+      INSERT INTO tracks (id, guild_id, coin, threshold_percent, channel_id, emoji, baseline_price, next_up_price, next_down_price)
+      VALUES (@id, @guild_id, @coin, @threshold_percent, @channel_id, @emoji, @baseline_price, @next_up_price, @next_down_price)
     `);
 
     const tx = this.db.transaction((allTracks: TrackConfig[]) => {
@@ -73,6 +80,8 @@ export class DbService {
           channel_id: track.channelId,
           emoji: track.emoji,
           baseline_price: track.baselinePrice,
+          next_up_price: track.nextUpPrice ?? null,
+          next_down_price: track.nextDownPrice ?? null,
         });
       }
     });
@@ -101,5 +110,18 @@ export class DbService {
     this.db
       .prepare(`INSERT INTO settings (key, value) VALUES ('poll_interval_ms', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
       .run(String(value));
+  }
+
+  private ensureTrackColumns(): void {
+    try {
+      this.db.exec("ALTER TABLE tracks ADD COLUMN next_up_price REAL");
+    } catch {
+      // column already exists
+    }
+    try {
+      this.db.exec("ALTER TABLE tracks ADD COLUMN next_down_price REAL");
+    } catch {
+      // column already exists
+    }
   }
 }

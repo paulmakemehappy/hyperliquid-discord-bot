@@ -10,9 +10,10 @@ Discord bot in Node.js + TypeScript that tracks Hyperliquid token price moves an
 - Slash command: `/tracks` to list active tracking configs
 - Slash command: `/settimeout seconds` to change polling interval without redeploy
 - Slash command: `/ping_hl symbol price [mention]` for one-time target alerts
-- Threshold is USD-based (for example `0.5` means a `$0.50` move)
-- Uses Hyperliquid `POST /info` with `type: allMids`
+- Threshold is a USD step grid (for example `0.5` means levels like `20.0`, `20.5`, `21.0`)
+- Uses mixed Hyperliquid pricing: `candleSnapshot` for `xyz:*`, `allMids` for everything else
 - Persists tracks locally in SQLite at `data/tracks.db`
+- Polling interval auto-adjusts upward when many symbols are tracked
 
 ## Setup
 
@@ -29,6 +30,7 @@ npm install
 - `DISCORD_GUILD_ID` (optional; not used for global command registration)
 - `POLL_INTERVAL_MS` (optional, default `5000`)
 - `DB_FILE_PATH` (optional, default `data/tracks.db`)
+- `CANDLE_INTERVAL` (optional, default `1m`)
 
 3. Register global slash commands:
 

@@ -7,6 +7,10 @@ export class PingAlertService {
     this.alerts.set(alert.id, alert);
   }
 
+  listAll(): PingAlert[] {
+    return [...this.alerts.values()];
+  }
+
   evaluate(mids: Record<string, number>): PingAlert[] {
     const triggered: PingAlert[] = [];
 

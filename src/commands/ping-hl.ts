@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { getAllMids } from "../services/hyperliquid";
+import { config } from "../config";
+import { resolveSymbolWithPrice } from "../services/hyperliquid";
 import { PingAlertService } from "../services/ping-alerts";
 
 function formatPrice(price: number): string {
@@ -26,13 +27,14 @@ export const pingHlCommand = new SlashCommandBuilder()
 export async function handlePingHlCommand(
   interaction: ChatInputCommandInteraction,
   pingAlertService: PingAlertService,
+  getCachedPriceForSymbol: (requestedSymbol: string) => { symbol: string; price: number } | null,
 ): Promise<void> {
   if (!interaction.inGuild() || !interaction.channelId) {
     await interaction.reply({ content: "This command can only be used inside a server channel.", ephemeral: true });
     return;
   }
 
-  const coin = interaction.options.getString("symbol", true).toUpperCase().trim();
+  const requestedCoin = interaction.options.getString("symbol", true).trim();
   const targetPrice = interaction.options.getNumber("price", true);
   const mentionOption = interaction.options.get("mention", false);
   const mentionText = mentionOption?.role
@@ -41,25 +43,33 @@ export async function handlePingHlCommand(
       ? `<@${mentionOption.user.id}>`
       : undefined;
 
-  let mids: Record<string, number>;
-  try {
-    mids = await getAllMids();
-  } catch {
+  let resolved: { coin: string; price: number } | null;
+  const cached = getCachedPriceForSymbol(requestedCoin);
+  if (cached) {
+    resolved = { coin: cached.symbol, price: cached.price };
+  } else {
+    try {
+      const fetched = await resolveSymbolWithPrice(requestedCoin, config.candleInterval);
+      resolved = fetched ? { coin: fetched.symbol, price: fetched.price } : null;
+    } catch {
+      await interaction.reply({
+        content: "Failed to fetch prices from Hyperliquid. Please try again.",
+        ephemeral: true,
+      });
+      return;
+    }
+  }
+
+  if (!resolved) {
     await interaction.reply({
-      content: "Failed to fetch prices from Hyperliquid. Please try again.",
+      content: `Coin ${requestedCoin} was not found.`,
       ephemeral: true,
     });
     return;
   }
 
-  const currentPrice = mids[coin];
-  if (!currentPrice) {
-    await interaction.reply({
-      content: `Coin ${coin} was not found in Hyperliquid allMids.`,
-      ephemeral: true,
-    });
-    return;
-  }
+  const coin = resolved.coin;
+  const currentPrice = resolved.price;
 
   const alertId = `${interaction.guildId}:${interaction.channelId}:${coin}:${targetPrice}:${Date.now()}`;
   pingAlertService.add({

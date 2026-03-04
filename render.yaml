@@ -17,3 +17,5 @@ services:
         value: "5000"
       - key: DB_FILE_PATH
         value: data/tracks.db
+      - key: CANDLE_INTERVAL
+        value: "1m"

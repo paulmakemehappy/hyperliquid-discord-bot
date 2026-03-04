@@ -26,7 +26,7 @@ export async function handleUntrackCommand(
     return;
   }
 
-  const coin = interaction.options.getString("coin", true).toUpperCase().trim();
+  const coin = interaction.options.getString("coin", true).trim();
   const channel = interaction.options.getChannel("channel", false);
   const removed = trackerService.removeTracks(guildId, coin, channel?.id);
 
